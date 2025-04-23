@@ -12,7 +12,7 @@ interface VideoCardProps {
   
     return (
       <div
-        className={`rounded-xl border-2 border-red-200 bg-white shadow-lg flex flex-col items-center ${className || ""}`}
+        className={`rounded-2xl border border-red-200/50 bg-white/80 backdrop-blur-sm shadow-xl flex flex-col items-center overflow-hidden ${className || ""}`}
         style={{
           width: "320px",
           maxWidth: "100%",
@@ -20,7 +20,7 @@ interface VideoCardProps {
         }}
       >
         {title && (
-          <div className="w-full text-lg font-semibold text-black py-2 text-center">
+          <div className="w-full text-lg font-semibold text-gray-800 py-3 text-center bg-gradient-to-r from-pink-50 to-red-50">
             {title}
           </div>
         )}
@@ -35,7 +35,7 @@ interface VideoCardProps {
             src={src}
             controls
             autoPlay
-            muted={false}
+            muted
             playsInline
             style={{
               width: "100%",

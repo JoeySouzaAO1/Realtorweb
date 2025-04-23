@@ -28,31 +28,35 @@ export default async function Home() {
     <main className="min-h-screen bg-gray-50">
       
       {/* Hero Section */}
-
-      <section className="bg-white py-20 px-4 text-center shadow-sm">
-  <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
-    {/* Left side: Video */}
-    <div className="md:w-1/2 flex justify-center">
-      <VideoCard src="/Why-realestate.mp4" title="Why Real Estate?" />
-    </div>
-
-    {/* Right side: Text */}
-    <div className="md:w-1/2 text-center md:text-left">
-      <h1 className="text-black text-4xl md:text-5xl font-bold mb-6">
-        Joey <span className="text-red-500">Souza</span>
-      </h1>
-      <TypingText
-              text='"I genuinely just love to build relationships with people."'
-              className="text-2xl md:text-4xl lg:text-5xl text-gray-700 font-semibold italic"
-              speed={70}
+      <section className="bg-gradient-to-br from-white via-pink-50 to-yellow-50 py-24 px-4">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
+          {/* Left side: Video */}
+          <div className="md:w-1/2 flex justify-center">
+            <VideoCard 
+              src="/Why-realestate.mp4" 
+              title="Why Real Estate?" 
+              className="transform hover:scale-105 transition-transform duration-300"
             />
-     
-    </div>
-  </div>
-</section>
+          </div>
+
+          {/* Right side: Text */}
+          <div className="md:w-1/2 text-center md:text-left space-y-6">
+            <h1 className="text-3xl md:text-6xl font-bold pb-4 mb-4 bg-gradient-to-r from-black to-red-500 bg-clip-text text-transparent">
+              Joey <span className="text-red-500">Souza</span>
+            </h1>
+            <div className="bg-white/50 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+              <TypingText
+                text="I genuinely just love to build relationships with people."
+                className="text-2xl md:text-3xl lg:text-4xl text-gray-700 font-semibold italic"
+                speed={70}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Testimonial Slider Section */}
-      <section className="py-16 bg-gradient-to-br from-white via-pink-50 to-yellow-50">
+      <section className="py-16 bg-white">
   <div className="container mx-auto">
     <h2 className="text-3xl font-semibold text-gray-800 text-center mb-8">
       What Clients Are Saying
@@ -67,13 +71,13 @@ export default async function Home() {
     <p className="text-gray-600 text-lg leading-relaxed">
   I'm Joey Souza, a dedicated Realtor with <span className="font-semibold text-red-500">Fathom Realty</span>, proudly serving buyers and sellers in the Triangle area. As a University of North Carolina alum (Go Heels!), I bring the same commitment and team spirit I learned at Carolina to every client relationship.  
   <br /><br />
-  I believe that transparency and honest communication are the foundation of trust, and I’m passionate about guiding my clients through every step of their real estate journey with clarity and care. Whether you’re buying your first home or selling a longtime family property, I’m here to make the process smooth, informed, and successful.  
+  I believe that transparency and honest communication are the foundation of trust, and I'm passionate about guiding my clients through every step of their real estate journey with clarity and care. Whether you're buying your first home or selling a longtime family property, I'm here to make the process smooth, informed, and successful.  
   <br /><br />
-  And don’t worry — even if you went to Duke, you'll get same top knotch service! However, there may be trash talking throughout...
+  And don't worry — even if you went to Duke, you'll get same top knotch service! However, there may be trash talking throughout...
 </p>
 
     {/* Stats blocks */}
-    <div className="flex gap-30 mt-8">
+    <div className="flex gap-20 mt-8 justify-center">
       {/* Experience Block */}
       <div className="flex flex-col items-center bg-gradient-to-tr from-pink-100 via-red-100 to-yellow-100 rounded-xl px-6 py-4 shadow min-w-[120px]">
         <h3 className="text-lg font-semibold text-gray-700">Experience</h3>
@@ -122,7 +126,7 @@ export default async function Home() {
       <section className="py-16">
         <div className="container mx-auto">
           <h2 className="text-3xl font-semibold text-gray-800 text-center mb-8">
-          Questions? I’m Here to Help!
+          Questions? I'm Here to Help!
           </h2>
           <InterestForm />
         </div>
