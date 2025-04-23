@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /out/
+/browser-tools-mcp
 
 # production
 /build
