@@ -185,9 +185,9 @@ const InterestForm = () => {
         />
         {fieldErrors.message && <p className="text-red-500 text-xs mt-1">{fieldErrors.message}</p>}
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex justify-center">
         <button
-          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+          className="bg-red-500 hover:bg-red-700 text-white text-center font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
           type="submit"
           disabled={loading}
         >
