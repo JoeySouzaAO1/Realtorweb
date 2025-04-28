@@ -7,22 +7,34 @@ import { TestimonialSlider } from "@/components/sliders/Testimonialslider";
 import TypingText from "@/components/Effects/TypingText";
 import InterestForm from "@/components/forms/InterestForm";
 
-async function getInstagramPosts() {
-  const supabase = await createClient();
-  const { data: posts, error } = await supabase
-    .from('instagram_posts')
-    .select('*')
-    .order('timestamp', { ascending: false });
+// Update environment variable name to match existing configuration
+const REALTOR_ID = process.env.NEXT_PUBLIC_REALTOR_ID;
 
-  if (error) {
-    console.error("Error fetching posts:", error);
+async function getInstagramPosts() {
+  try {
+    const supabase = await createClient();
+    
+    const { data: posts, error } = await supabase
+      .from('instagram_posts')
+      .select('*')
+      .order('timestamp', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching posts:", error);
+      return [];
+    }
+
+    console.log('Fetched posts count:', posts?.length || 0);
+    return posts || [];
+  } catch (error) {
+    console.error('Error in getInstagramPosts:', error);
     return [];
   }
-  return posts;
 }
 
 export default async function Home() {
   const posts = await getInstagramPosts();
+  console.log('Posts in Home component:', posts?.length || 0);
 
   return (
     <main className="min-h-screen bg-gray-50">

@@ -18,7 +18,8 @@
     "react-slick": "^0.30.3",
     "slick-carousel": "^1.8.1",
     "tlds": "^1.256.0",
-    "validator": "^13.15.0"
+    "validator": "^13.15.0",
+    "axios": "^1.6.7"
   },
   "devDependencies": {
     "@types/node": "^20",

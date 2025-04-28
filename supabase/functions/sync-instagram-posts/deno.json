@@ -1,3 +1,9 @@
 {
-  "imports": {}
+  "compilerOptions": {
+    "lib": ["deno.ns", "deno.unstable", "dom"],
+    "strict": true,
+    "allowJs": true,
+    "types": ["https://deno.land/x/supabase@1.112.0/mod.ts"]
+  },
+  "importMap": "./import_map.json"
 }

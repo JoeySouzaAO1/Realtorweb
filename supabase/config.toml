@@ -310,7 +310,7 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 [functions.sync-instagram-posts]
 enabled = true
 verify_jwt = true
-import_map = "./functions/sync-instagram-posts/deno.json"
+# Remove the import_map line if it exists
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/sync-instagram-posts/index.ts"
