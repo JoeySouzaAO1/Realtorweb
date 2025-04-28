@@ -56,8 +56,8 @@ async function uploadToStorage(
   retryCount = 0
 ): Promise<string> {
   try {
-    const fileName = `${realtor_profile_user_id}/${postId}-${Date.now()}.jpg`;
-    
+    const fileName = `${realtor_profile_user_id}/${postId}.jpg`;
+        
     const { data, error } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(fileName, buffer, {
@@ -120,105 +120,120 @@ serve(async (req: Request) => {
     await ensureBucketExists(supabaseClient);
 
     // Get Instagram token
-    const { data: tokenRow, error: tokenError } = await supabaseClient
+    const { data: tokenRows, error: tokenError } = await supabaseClient
       .from("instagram_tokens")
-      .select("access_token, realtor_profile_user_id")
-      .limit(1)
-      .single();
+      .select("access_token, realtor_profile_user_id");
 
-    if (tokenError || !tokenRow) {
+    if (tokenError || !tokenRows) {
       console.error("Error fetching Instagram token:", tokenError);
       return new Response("No Instagram token found", { status: 500 });
     }
 
-    const accessToken = tokenRow.access_token;
-    const realtor_profile_user_id = tokenRow.realtor_profile_user_id;
-
-    // Get cursor from query params for pagination
-    const url = new URL(req.url);
-    const cursor = url.searchParams.get('cursor');
-    
-    // Fetch posts from Instagram API with pagination
-    let allPosts: InstagramPost[] = [];
-    let nextUrl = cursor || `https://graph.instagram.com/me/media?fields=id,caption,media_url,permalink,timestamp,media_type,thumbnail_url&limit=25&access_token=${accessToken}`;
-
-    // Only fetch until we reach POST_LIMIT
-    while (nextUrl && allPosts.length < POST_LIMIT) {
-      try {
-        const res = await fetch(nextUrl);
-        const data = await res.json();
-        
-        if (data.error) {
-          console.error(`Instagram API error:`, data.error);
-          throw new Error(data.error.message);
-        }
-        
-        if (data.data) {
-          // Only add posts up to our limit
-          const remainingSlots = POST_LIMIT - allPosts.length;
-          const newPosts = data.data.slice(0, remainingSlots);
-          allPosts = allPosts.concat(newPosts);
-          
-          // If we've reached our limit, stop pagination
-          if (allPosts.length >= POST_LIMIT) {
-            nextUrl = null;
-            break;
-          }
-        }
-        
-        nextUrl = data.paging?.next || null;
-      } catch (error) {
-        console.error(`Error fetching Instagram posts:`, error);
-        throw error;
-      }
-    }
-
-    console.log(`Fetched ${allPosts.length} posts out of ${POST_LIMIT} limit`);
-
-    // Process posts in smaller batches
     const results = [];
-    for (let i = 0; i < allPosts.length; i += BATCH_SIZE) {
-      const batch = allPosts.slice(i, i + BATCH_SIZE);
+    for (const tokenRow of tokenRows) {
+      const accessToken = tokenRow.access_token;
+      const realtor_profile_user_id = tokenRow.realtor_profile_user_id;
+
+      // Get cursor from query params for pagination
+      const url = new URL(req.url);
+      const cursor = url.searchParams.get('cursor');
       
-      // Process each post in the batch
-      for (const post of batch) {
+      // Fetch posts from Instagram API with pagination
+      let allPosts: InstagramPost[] = [];
+      let nextUrl = cursor || `https://graph.instagram.com/me/media?fields=id,caption,media_url,permalink,timestamp,media_type,thumbnail_url&limit=25&access_token=${accessToken}`;
+
+      // Only fetch until we reach POST_LIMIT
+      while (nextUrl && allPosts.length < POST_LIMIT) {
         try {
-          if (post.media_type !== 'IMAGE' && post.media_type !== 'CAROUSEL_ALBUM') {
-            continue;
+          const res = await fetch(nextUrl);
+          const data = await res.json();
+          
+          if (data.error) {
+            console.error(`Instagram API error:`, data.error);
+            throw new Error(data.error.message);
           }
-
-          let storageUrl = null;
-          try {
-            const imageBuffer = await downloadImage(post.media_url);
-            storageUrl = await uploadToStorage(supabaseClient, imageBuffer, post.id, realtor_profile_user_id);
-          } catch (imageError) {
-            console.error(`Failed to process image for post ${post.id}:`, imageError);
+          
+          if (data.data) {
+            // Only add posts up to our limit
+            const remainingSlots = POST_LIMIT - allPosts.length;
+            const newPosts = data.data.slice(0, remainingSlots);
+            allPosts = allPosts.concat(newPosts);
+            
+            // If we've reached our limit, stop pagination
+            if (allPosts.length >= POST_LIMIT) {
+              nextUrl = null;
+              break;
+            }
           }
-
-          await supabaseClient.from("instagram_posts").upsert({
-            id: post.id,
-            realtor_profile_user_id,
-            caption: post.caption || null,
-            image_url: post.media_url,
-            storage_url: storageUrl,
-            original_image_url: post.media_url,
-            permalink: post.permalink,
-            timestamp: post.timestamp,
-            media_type: post.media_type
-          });
-
-          results.push({
-            id: post.id,
-            status: storageUrl ? 'success' : 'original',
-            url: storageUrl || post.media_url
-          });
+          
+          nextUrl = data.paging?.next || null;
         } catch (error) {
-          console.error(`Error processing post ${post.id}:`, error);
-          results.push({
-            id: post.id,
-            status: 'error',
-            error: error.message
-          });
+          console.error(`Error fetching Instagram posts:`, error);
+          throw error;
+        }
+      }
+
+      console.log(`Fetched ${allPosts.length} posts out of ${POST_LIMIT} limit`);
+
+      // Process posts in smaller batches
+      for (let i = 0; i < allPosts.length; i += BATCH_SIZE) {
+        const batch = allPosts.slice(i, i + BATCH_SIZE);
+        
+        // Process each post in the batch
+        for (const post of batch) {
+          try {
+            if (post.media_type !== 'IMAGE' && post.media_type !== 'CAROUSEL_ALBUM') {
+              continue;
+            }
+
+            // Check if the post already exists and has a storage_url
+            const { data: existingPost, error: fetchError } = await supabaseClient
+              .from("instagram_posts")
+              .select("storage_url")
+              .eq("id", post.id)
+              .eq("realtor_profile_user_id", realtor_profile_user_id)
+              .single();
+
+            let storageUrl = null;
+
+            if (existingPost && existingPost.storage_url) {
+              // Post already exists and has a storage_url, reuse it
+              storageUrl = existingPost.storage_url;
+            } else {
+              // Post does not exist or has no storage_url, upload image
+              try {
+                const imageBuffer = await downloadImage(post.media_url);
+                storageUrl = await uploadToStorage(supabaseClient, imageBuffer, post.id, realtor_profile_user_id);
+              } catch (imageError) {
+                console.error(`Failed to process image for post ${post.id}:`, imageError);
+              }
+            }
+
+            await supabaseClient.from("instagram_posts").upsert({
+              id: post.id,
+              realtor_profile_user_id,
+              caption: post.caption || null,
+              image_url: post.media_url,
+              storage_url: storageUrl,
+              original_image_url: post.media_url,
+              permalink: post.permalink,
+              timestamp: post.timestamp,
+              media_type: post.media_type
+            });
+
+            results.push({
+              id: post.id,
+              status: storageUrl ? 'success' : 'original',
+              url: storageUrl || post.media_url
+            });
+          } catch (error) {
+            console.error(`Error processing post ${post.id}:`, error);
+            results.push({
+              id: post.id,
+              status: 'error',
+              error: error.message
+            });
+          }
         }
       }
     }
