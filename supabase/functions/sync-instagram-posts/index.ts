@@ -5,13 +5,13 @@
 // @deno-types="https://raw.githubusercontent.com/denoland/deno/v1.x/cli/dts/lib.deno.unstable.d.ts"
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { serve } from "jsr:@std/http/server";
-import { createClient } from "@supabase/supabase-js";
-
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
 const BUCKET_NAME = 'instagram-images';
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
-const BATCH_SIZE = 10; // Process posts in batches
+const BATCH_SIZE = 5; // Process posts in batches
+const POST_LIMIT = 50; // Maximum posts to fetch per realtor
 
 interface InstagramPost {
   id: string;
@@ -48,8 +48,16 @@ async function downloadImage(url: string, retryCount = 0): Promise<Uint8Array> {
   }
 }
 
-async function uploadToStorage(supabase: any, buffer: Uint8Array, fileName: string, retryCount = 0): Promise<string> {
+async function uploadToStorage(
+  supabase: any, 
+  buffer: Uint8Array, 
+  postId: string, 
+  realtor_profile_user_id: string,
+  retryCount = 0
+): Promise<string> {
   try {
+    const fileName = `${realtor_profile_user_id}/${postId}-${Date.now()}.jpg`;
+    
     const { data, error } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(fileName, buffer, {
@@ -69,12 +77,33 @@ async function uploadToStorage(supabase: any, buffer: Uint8Array, fileName: stri
     
     if (retryCount < MAX_RETRIES) {
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
-      return uploadToStorage(supabase, buffer, fileName, retryCount + 1);
+      return uploadToStorage(supabase, buffer, postId, realtor_profile_user_id, retryCount + 1);
     }
     
     throw error;
   }
 }
+
+async function ensureBucketExists(supabaseClient: any) {
+  try {
+    const { data: bucket, error: bucketError } = await supabaseClient.storage.getBucket(BUCKET_NAME);
+    if (bucketError && bucketError.message.includes('does not exist')) {
+      const { error: createError } = await supabaseClient.storage.createBucket(BUCKET_NAME, {
+        public: true,
+        allowedMimeTypes: ['image/jpeg', 'image/png'],
+        fileSizeLimit: 1024 * 1024 * 5 // 5MB
+      });
+      if (createError) throw createError;
+    }
+  } catch (error) {
+    throw new Error(`Failed to initialize storage bucket: ${error.message}`);
+  }
+}
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 serve(async (req: Request) => {
   try {
@@ -88,18 +117,7 @@ serve(async (req: Request) => {
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Ensure bucket exists with proper configuration
-    try {
-      const { data: bucket, error } = await supabaseClient.storage.getBucket(BUCKET_NAME);
-      if (error && error.message.includes('does not exist')) {
-        await supabaseClient.storage.createBucket(BUCKET_NAME, {
-          public: true,
-          allowedMimeTypes: ['image/jpeg', 'image/png'],
-          fileSizeLimit: 1024 * 1024 * 5 // 5MB
-        });
-      }
-    } catch (error) {
-      console.error("Error checking/creating bucket:", error);
-    }
+    await ensureBucketExists(supabaseClient);
 
     // Get Instagram token
     const { data: tokenRow, error: tokenError } = await supabaseClient
@@ -116,32 +134,48 @@ serve(async (req: Request) => {
     const accessToken = tokenRow.access_token;
     const realtor_profile_user_id = tokenRow.realtor_profile_user_id;
 
-    // Fetch posts from Instagram API
+    // Get cursor from query params for pagination
+    const url = new URL(req.url);
+    const cursor = url.searchParams.get('cursor');
+    
+    // Fetch posts from Instagram API with pagination
     let allPosts: InstagramPost[] = [];
-    let nextUrl = `https://graph.instagram.com/me/media?fields=id,caption,media_url,permalink,timestamp,media_type,thumbnail_url&limit=100&access_token=${accessToken}`;
+    let nextUrl = cursor || `https://graph.instagram.com/me/media?fields=id,caption,media_url,permalink,timestamp,media_type,thumbnail_url&limit=25&access_token=${accessToken}`;
 
-    while (nextUrl) {
+    // Only fetch until we reach POST_LIMIT
+    while (nextUrl && allPosts.length < POST_LIMIT) {
       try {
         const res = await fetch(nextUrl);
         const data = await res.json();
         
         if (data.error) {
           console.error(`Instagram API error:`, data.error);
-          break;
+          throw new Error(data.error.message);
         }
         
         if (data.data) {
-          allPosts = allPosts.concat(data.data);
+          // Only add posts up to our limit
+          const remainingSlots = POST_LIMIT - allPosts.length;
+          const newPosts = data.data.slice(0, remainingSlots);
+          allPosts = allPosts.concat(newPosts);
+          
+          // If we've reached our limit, stop pagination
+          if (allPosts.length >= POST_LIMIT) {
+            nextUrl = null;
+            break;
+          }
         }
         
         nextUrl = data.paging?.next || null;
       } catch (error) {
         console.error(`Error fetching Instagram posts:`, error);
-        break;
+        throw error;
       }
     }
 
-    // Process posts in batches
+    console.log(`Fetched ${allPosts.length} posts out of ${POST_LIMIT} limit`);
+
+    // Process posts in smaller batches
     const results = [];
     for (let i = 0; i < allPosts.length; i += BATCH_SIZE) {
       const batch = allPosts.slice(i, i + BATCH_SIZE);
@@ -149,23 +183,18 @@ serve(async (req: Request) => {
       // Process each post in the batch
       for (const post of batch) {
         try {
-          // Only process image or carousel posts
           if (post.media_type !== 'IMAGE' && post.media_type !== 'CAROUSEL_ALBUM') {
             continue;
           }
 
-          // Try to download and store the image
           let storageUrl = null;
           try {
             const imageBuffer = await downloadImage(post.media_url);
-            const fileName = `${post.id}.jpg`;
-            storageUrl = await uploadToStorage(supabaseClient, imageBuffer, fileName);
-            console.log(`Successfully stored image for post ${post.id}`);
+            storageUrl = await uploadToStorage(supabaseClient, imageBuffer, post.id, realtor_profile_user_id);
           } catch (imageError) {
             console.error(`Failed to process image for post ${post.id}:`, imageError);
           }
 
-          // Update the post in the database
           await supabaseClient.from("instagram_posts").upsert({
             id: post.id,
             realtor_profile_user_id,
@@ -196,7 +225,8 @@ serve(async (req: Request) => {
 
     return new Response(JSON.stringify({
       message: `Processed ${results.length} posts`,
-      results: results
+      results: results,
+      next_cursor: nextUrl // Include the next cursor in response
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
