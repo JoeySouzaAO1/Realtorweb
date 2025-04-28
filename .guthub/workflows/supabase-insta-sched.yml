@@ -1,0 +1,14 @@
+name: Call Supabase Edge Function every 6 hours
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours (UTC)
+  workflow_dispatch:       # Allows manual trigger from the Actions tab
+
+jobs:
+  call-function:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Edge Function
+        run: |
+          curl -X GET "https://vgjbljjluvlexargpigo.supabase.co/functions/v1/schedule-instagram-sync"
