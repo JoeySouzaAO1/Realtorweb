@@ -78,7 +78,7 @@ export default async function Home() {
 </section>
   {/* About Me (left) */}
   <section className="max-w-5xl mx-auto py-16 px-4 flex flex-col md:flex-row gap-8 items-start">
-  <div className="flex-1">
+  <div className="flex-1 w-full">
     <h2 className="text-2xl font-semibold mb-4 text-gray-800 ">About Me</h2>
     <p className="text-gray-600 text-lg leading-relaxed">
   I'm Joey Souza, a dedicated Realtor with <span className="font-semibold text-red-500">Fathom Realty</span>, proudly serving buyers and sellers in the Triangle area. As a University of North Carolina alum (Go Heels!), I bring the same commitment and team spirit I learned at Carolina to every client relationship.  
@@ -89,19 +89,19 @@ export default async function Home() {
 </p>
 
     {/* Stats blocks */}
-    <div className="flex gap-20 mt-8 justify-center">
+    <div className="flex justify-center gap-4 md:gap-20 mt-8">
       {/* Experience Block */}
-      <div className="flex flex-col items-center bg-gradient-to-tr from-pink-100 via-red-100 to-yellow-100 rounded-xl px-6 py-4 shadow min-w-[120px]">
-        <h3 className="text-lg font-semibold text-gray-700">Experience</h3>
-        <div className="text-3xl font-bold text-pink-500 mt-2">
+      <div className="flex flex-col items-center bg-gradient-to-tr from-pink-100 via-red-100 to-yellow-100 rounded-xl px-3 sm:px-6 py-4 shadow w-[140px] sm:w-[160px]">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-700 whitespace-nowrap">Experience</h3>
+        <div className="text-2xl sm:text-3xl font-bold text-pink-500 mt-2">
           <CountUp end={5} duration={1.5} />
         </div>
         <p className="text-xs text-gray-500 mt-1">Years</p>
       </div>
       {/* Sales Volume Block */}
-      <div className="flex flex-col items-center bg-gradient-to-tr from-pink-100 via-red-100 to-yellow-100 rounded-xl px-6 py-4 shadow min-w-[120px]">
-        <h3 className="text-lg font-semibold text-gray-700">Sales Volume</h3>
-        <div className="text-3xl font-bold text-yellow-500 mt-2">
+      <div className="flex flex-col items-center bg-gradient-to-tr from-pink-100 via-red-100 to-yellow-100 rounded-xl px-3 sm:px-6 py-4 shadow w-[140px] sm:w-[160px]">
+        <h3 className="text-[1rem] sm:text-lg font-semibold text-gray-700 whitespace-nowrap">Sales Volume</h3>
+        <div className="text-2xl sm:text-3xl font-bold text-yellow-500 mt-2">
           <CountUp end={3.5} decimals={1} duration={1.5} prefix="$" />
         </div>
         <p className="text-xs text-gray-500 mt-1">Million</p>
@@ -109,7 +109,7 @@ export default async function Home() {
     </div>
   </div>
   {/* InstaCard (right) */}
-  <div className="flex-shrink-0">
+  <div className="flex-shrink-0 w-full flex justify-center md:justify-start">
     <InstaCard posts={posts} />
   </div>
 </section>
