@@ -1,8 +1,8 @@
-# RealWeb - Real Estate Web Application
+# RealWeb - Full Stack Real Estate Web Application
 
-A modern real estate web application built with Next.js 14, React 18, and Supabase, featuring a responsive design with Tailwind CSS.
+A modern full stack real estate web application built with Next.js 14, React 18, and Supabase, featuring a responsive design with Tailwind CSS.
 
-## *🔗 [Live Website](realtorweb.vercel.app)*
+## *🔗 [Live Website](https://realtorweb.vercel.app)*
 ## 🌟 Features
 
 - **Modern Tech Stack**: Built with Next.js 14 and React 18
