@@ -1,4 +1,4 @@
-# RealWeb - Full Stack Real Estate Web Application
+# RealtorWeb - Full Stack Real Estate Web Application
 
 A modern full stack real estate web application built with Next.js 14, React 18, and Supabase, featuring a responsive design with Tailwind CSS.
 
