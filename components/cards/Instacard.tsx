@@ -22,39 +22,76 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
 export default function InstaCard({ posts }: InstaCardProps) {
+  // Only log initial posts count
   console.log('InstaCard received posts:', posts?.length || 0);
   
   // Filter posts for images/carousels with #realestate in the caption
   const filteredPosts = posts.filter(post => {
     const isValidType = post.media_type === "IMAGE" || post.media_type === "CAROUSEL_ALBUM";
     const hasRealEstateTag = post.caption?.toLowerCase().includes("#realestate");
-    console.log(`Post ${post.id}: type=${post.media_type}, hasTag=${hasRealEstateTag}`);
+    // Remove individual post logging
     return isValidType && hasRealEstateTag;
   });
 
+  // Only log filtered count once
   console.log('Filtered posts count:', filteredPosts.length);
 
   // Carousel state
   const [current, setCurrent] = useState(0);
   const [imageError, setImageError] = useState<Record<string, boolean>>({});
   const [retryCount, setRetryCount] = useState<Record<string, number>>({});
+  const [failedStorageUrls, setFailedStorageUrls] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    if (!filteredPosts || filteredPosts.length === 0) return;
-    const interval = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % filteredPosts.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [filteredPosts]);
+  // Add state to track if we've switched to Instagram URLs
+  const [useInstagramUrls, setUseInstagramUrls] = useState(false);
 
-  // Reset error state when post changes
-  useEffect(() => {
-    if (filteredPosts && filteredPosts.length > 0) {
-      const post = filteredPosts[current];
-      setImageError(prev => ({ ...prev, [post.id]: false }));
-      setRetryCount(prev => ({ ...prev, [post.id]: 0 }));
+  const getImageUrl = (post: InstagramPost) => {
+    // Always use Instagram URLs if storage failed
+    if (useInstagramUrls) {
+      return post.original_image_url || post.image_url || '/instagram-placeholder.jpg';
     }
-  }, [current, filteredPosts]);
+
+    // Try storage URL first
+    if (post.storage_url && !failedStorageUrls[post.id]) {
+      return post.storage_url;
+    }
+
+    // Fallback to Instagram URL
+    return post.original_image_url || post.image_url || '/instagram-placeholder.jpg';
+  };
+
+  const handleImageError = async (postId: string) => {
+    console.log('Image error for post:', postId);
+    
+    // Switch to Instagram URLs globally after first storage error
+    setUseInstagramUrls(true);
+    
+    setFailedStorageUrls(prev => ({
+      ...prev,
+      [postId]: true
+    }));
+  };
+
+  // Modify the rotation effect logging
+  useEffect(() => {
+    if (!filteredPosts || filteredPosts.length <= 1) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setCurrent(prev => {
+        const next = (prev + 1) % filteredPosts.length;
+        // Optional: keep rotation logging if helpful for debugging
+        console.log(`Rotating from post ${prev} to ${next}`);
+        return next;
+      });
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [filteredPosts.length]);
+
+  // Add loading state
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!posts || posts.length === 0) {
     return <div className="text-gray-500 text-center p-4">Loading posts...</div>;
@@ -65,58 +102,6 @@ export default function InstaCard({ posts }: InstaCardProps) {
   }
 
   const post = filteredPosts[current];
-
-  // Get the best available image URL
-  const getImageUrl = (post: InstagramPost) => {
-    console.log(`Getting URL for post ${post.id}:`, {
-      storage_url: post.storage_url,
-      image_url: post.image_url,
-      hasError: imageError[post.id]
-    });
-    
-    // Try storage URL first if available
-    if (!imageError[post.id] && post.storage_url) {
-      return post.storage_url;
-    }
-    
-    // Fallback to original URL
-    if (!imageError[post.id]) {
-      return post.image_url;
-    }
-    
-    // If both failed, try original URL again
-    if (retryCount[post.id] < MAX_RETRIES) {
-      return post.image_url;
-    }
-    
-    // If all retries failed, show a placeholder
-    return '/instagram-placeholder.jpg';
-  };
-
-  const handleImageError = async (postId: string) => {
-    console.log('Image error for post:', postId);
-    
-    const currentRetries = (retryCount[postId] || 0) + 1;
-    setRetryCount(prev => ({
-      ...prev,
-      [postId]: currentRetries
-    }));
-    
-    if (currentRetries <= MAX_RETRIES) {
-      console.log(`Retry ${currentRetries}/${MAX_RETRIES} for post ${postId}`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-      setImageError(prev => ({
-        ...prev,
-        [postId]: false
-      }));
-    } else {
-      setImageError(prev => ({
-        ...prev,
-        [postId]: true
-      }));
-      console.log(`Max retries exceeded for post ${postId}`);
-    }
-  };
 
   return (
     <div className="max-w-[15rem] mx-auto">
@@ -155,8 +140,12 @@ export default function InstaCard({ posts }: InstaCardProps) {
                   src={getImageUrl(post)}
                   alt={post.caption?.slice(0, 100) || "Instagram post"}
                   fill
-                  className="object-cover"
+                  className={`object-cover transition-opacity duration-300 ${
+                    isLoading ? 'opacity-0' : 'opacity-100'
+                  }`}
                   onError={() => handleImageError(post.id)}
+                  onLoadingComplete={() => setIsLoading(false)}
+                  onLoadStart={() => setIsLoading(true)}
                   priority
                   sizes="(max-width: 15rem) 100vw, 15rem"
                 />
