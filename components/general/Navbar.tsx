@@ -66,7 +66,7 @@ export function Navbar() {
 
         {/* Center: Tabs */}
         <div className="hidden md:flex flex-1 justify-center gap-6">
-          <Link href="/" className="text-black font-medium transition rounded-lg px-4 py-2 border hover:bg-red-50 hover:text-red-500 hover:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-200 shadow-sm">
+          <Link href="/" className="text-gray-700 font-medium transition rounded-lg px-4 py-2 border hover:bg-red-50 hover:text-red-500 hover:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-200 shadow-sm">
             Home
           </Link>
           <Link href="/myservices" className="text-gray-700 font-medium transition rounded-lg px-4 py-2 border hover:bg-red-50 hover:text-red-500 hover:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-200 shadow-sm">
