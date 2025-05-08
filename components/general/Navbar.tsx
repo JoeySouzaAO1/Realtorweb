@@ -48,32 +48,42 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full">
       <div className="py-5 px-4 flex items-center justify-between border-b bg-white">
-        {/* Left: Logo and Tabs */}
-        <div className="flex items-center gap-8">
+        {/* Left: Logo */}
+        <div className="flex items-center flex-shrink-0">
           <Link href="/" className="flex items-center">
             <Image
-              src="/FathomLogo-WhiteBackground copy.jpg"
+              src="/FathomLogo-AvatarIcon.png"
               alt="Fathom Realty Logo"
-              width={150}
-              height={40}
+              width={100}
+              height={20}
               className="mr-4"
             />
             <h1 className="text-black text-3xl font-semibold cursor-pointer">
               Joey <span className="text-red-500">Souza</span>
             </h1>
           </Link>
-          <div className="hidden md:flex gap-6 ml-6">
-            <Link href="/" className="text-gray-700 hover:text-red-500 font-medium transition">Home</Link>
-            <Link href="/myservices" className="text-gray-700 hover:text-red-500 font-medium transition">My Services</Link>
-            <Link href="/contact" className="text-gray-700 hover:text-red-500 font-medium transition">Contact</Link>
-            {isSignedIn && (
-              <Link href="/admindashboard" className="text-gray-700 hover:text-red-500 font-medium transition">Dashboard</Link>
-            )}
-          </div>
+        </div>
+
+        {/* Center: Tabs */}
+        <div className="hidden md:flex flex-1 justify-center gap-6">
+          <Link href="/" className="text-black font-medium transition rounded-lg px-4 py-2 border hover:bg-red-50 hover:text-red-500 hover:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-200 shadow-sm">
+            Home
+          </Link>
+          <Link href="/myservices" className="text-gray-700 font-medium transition rounded-lg px-4 py-2 border hover:bg-red-50 hover:text-red-500 hover:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-200 shadow-sm">
+            My Services
+          </Link>
+          <Link href="/contact" className="text-gray-700 font-medium transition rounded-lg px-4 py-2 border hover:bg-red-50 hover:text-red-500 hover:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-200 shadow-sm">
+            Contact
+          </Link>
+          {isSignedIn && (
+            <Link href="/admindashboard" className="text-gray-700 font-medium transition rounded-lg px-4 py-2 border hover:bg-red-50 hover:text-red-500 hover:border-red-200 focus:outline-none focus:ring-2 focus:ring-red-200 shadow-sm">
+              Dashboard
+            </Link>
+          )}
         </div>
 
         {/* Right: Auth Link (Desktop) */}
-        <div className="hidden md:block">
+        <div className="hidden md:block flex-shrink-0">
           {!isSignedIn ? (
             <Link href="/signin" className="text-xs text-gray-400 hover:text-red-500">Realtor Login</Link>
           ) : (
