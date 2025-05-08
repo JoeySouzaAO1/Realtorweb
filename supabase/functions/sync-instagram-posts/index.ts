@@ -7,11 +7,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
-const BUCKET_NAME = 'instagram-images';
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
-const BATCH_SIZE = 5; // Process posts in batches
+
 const POST_LIMIT = 50; // Maximum posts to fetch per realtor
+const BATCH_SIZE = 5; // Process posts in batches
 
 interface InstagramPost {
   id: string;
@@ -21,83 +19,6 @@ interface InstagramPost {
   timestamp: string;
   media_type: string;
   thumbnail_url?: string;
-}
-
-async function downloadImage(url: string, retryCount = 0): Promise<Uint8Array> {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to download image: ${response.status}`);
-    }
-    
-    return new Uint8Array(await response.arrayBuffer());
-  } catch (error) {
-    console.error(`Error downloading image from ${url} (attempt ${retryCount + 1}):`, error);
-    
-    if (retryCount < MAX_RETRIES) {
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
-      return downloadImage(url, retryCount + 1);
-    }
-    
-    throw error;
-  }
-}
-
-async function uploadToStorage(
-  supabase: any, 
-  buffer: Uint8Array, 
-  postId: string, 
-  realtor_profile_user_id: string,
-  retryCount = 0
-): Promise<string> {
-  try {
-    const fileName = `${realtor_profile_user_id}/${postId}.jpg`;
-        
-    const { data, error } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(fileName, buffer, {
-        contentType: 'image/jpeg',
-        upsert: true
-      });
-
-    if (error) throw error;
-
-    const { data: publicUrl } = supabase.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(fileName);
-
-    return publicUrl.publicUrl;
-  } catch (error) {
-    console.error(`Upload error (attempt ${retryCount + 1}):`, error);
-    
-    if (retryCount < MAX_RETRIES) {
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
-      return uploadToStorage(supabase, buffer, postId, realtor_profile_user_id, retryCount + 1);
-    }
-    
-    throw error;
-  }
-}
-
-async function ensureBucketExists(supabaseClient: any) {
-  try {
-    const { data: bucket, error: bucketError } = await supabaseClient.storage.getBucket(BUCKET_NAME);
-    if (bucketError && bucketError.message.includes('does not exist')) {
-      const { error: createError } = await supabaseClient.storage.createBucket(BUCKET_NAME, {
-        public: true,
-        allowedMimeTypes: ['image/jpeg', 'image/png'],
-        fileSizeLimit: 1024 * 1024 * 5 // 5MB
-      });
-      if (createError) throw createError;
-    }
-  } catch (error) {
-    throw new Error(`Failed to initialize storage bucket: ${error.message}`);
-  }
 }
 
 const corsHeaders = {
@@ -116,20 +37,19 @@ serve(async (req: Request) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Ensure bucket exists with proper configuration
-    await ensureBucketExists(supabaseClient);
-
-    // Get Instagram token
+    // Get all Instagram tokens
     const { data: tokenRows, error: tokenError } = await supabaseClient
       .from("instagram_tokens")
       .select("access_token, realtor_profile_user_id");
 
     if (tokenError || !tokenRows) {
-      console.error("Error fetching Instagram token:", tokenError);
-      return new Response("No Instagram token found", { status: 500 });
+      console.error("Error fetching Instagram tokens:", tokenError);
+      return new Response("No Instagram tokens found", { status: 500 });
     }
 
     const results = [];
+    
+    // Process each realtor's token
     for (const tokenRow of tokenRows) {
       const accessToken = tokenRow.access_token;
       const realtor_profile_user_id = tokenRow.realtor_profile_user_id;
@@ -154,12 +74,10 @@ serve(async (req: Request) => {
           }
           
           if (data.data) {
-            // Only add posts up to our limit
             const remainingSlots = POST_LIMIT - allPosts.length;
             const newPosts = data.data.slice(0, remainingSlots);
             allPosts = allPosts.concat(newPosts);
             
-            // If we've reached our limit, stop pagination
             if (allPosts.length >= POST_LIMIT) {
               nextUrl = null;
               break;
@@ -173,7 +91,7 @@ serve(async (req: Request) => {
         }
       }
 
-      console.log(`Fetched ${allPosts.length} posts out of ${POST_LIMIT} limit`);
+      console.log(`Fetched ${allPosts.length} posts out of ${POST_LIMIT} limit for realtor ${realtor_profile_user_id}`);
 
       // Process posts in smaller batches
       for (let i = 0; i < allPosts.length; i += BATCH_SIZE) {
@@ -186,35 +104,13 @@ serve(async (req: Request) => {
               continue;
             }
 
-            // Check if the post already exists and has a storage_url
-            const { data: existingPost, error: fetchError } = await supabaseClient
-              .from("instagram_posts")
-              .select("storage_url")
-              .eq("id", post.id)
-              .eq("realtor_profile_user_id", realtor_profile_user_id)
-              .single();
-
-            let storageUrl = null;
-
-            if (existingPost && existingPost.storage_url) {
-              // Post already exists and has a storage_url, reuse it
-              storageUrl = existingPost.storage_url;
-            } else {
-              // Post does not exist or has no storage_url, upload image
-              try {
-                const imageBuffer = await downloadImage(post.media_url);
-                storageUrl = await uploadToStorage(supabaseClient, imageBuffer, post.id, realtor_profile_user_id);
-              } catch (imageError) {
-                console.error(`Failed to process image for post ${post.id}:`, imageError);
-              }
-            }
-
+            // Upsert the post data with just the original URLs
             await supabaseClient.from("instagram_posts").upsert({
               id: post.id,
               realtor_profile_user_id,
               caption: post.caption || null,
               image_url: post.media_url,
-              storage_url: storageUrl,
+              storage_url: null,
               original_image_url: post.media_url,
               permalink: post.permalink,
               timestamp: post.timestamp,
@@ -223,8 +119,8 @@ serve(async (req: Request) => {
 
             results.push({
               id: post.id,
-              status: storageUrl ? 'success' : 'original',
-              url: storageUrl || post.media_url
+              status: 'success',
+              url: post.media_url
             });
           } catch (error) {
             console.error(`Error processing post ${post.id}:`, error);
@@ -241,7 +137,7 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({
       message: `Processed ${results.length} posts`,
       results: results,
-      next_cursor: nextUrl // Include the next cursor in response
+      next_cursor: nextUrl
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
