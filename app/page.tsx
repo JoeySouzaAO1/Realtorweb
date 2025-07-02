@@ -77,7 +77,7 @@ export default async function Home() {
   </div>
 </section>
   {/* About Me (left) */}
-  <section className="max-w-5xl mx-auto py-16 px-4 flex flex-col md:flex-row gap-8 items-start">
+  <section className="max-w-5xl mx-auto py-16 px-4 flex flex-col lg:flex-row gap-8 items-start">
   <div className="flex-1 w-full">
     <h2 className="text-2xl font-semibold mb-4 text-gray-800 ">About Me</h2>
     <p className="text-gray-600 text-lg leading-relaxed">

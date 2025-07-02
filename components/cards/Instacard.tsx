@@ -144,7 +144,7 @@ export default function InstaCard({ posts }: InstaCardProps) {
                     isLoading ? 'opacity-0' : 'opacity-100'
                   }`}
                   onError={() => handleImageError(post.id)}
-                  onLoadingComplete={() => setIsLoading(false)}
+                  onLoad={() => setIsLoading(false)}
                   onLoadStart={() => setIsLoading(true)}
                   priority
                   sizes="(max-width: 15rem) 100vw, 15rem"
