@@ -1,8 +1,6 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import Slider from 'react-slick';
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
+import React from 'react';
+import { LightweightSlider } from './LightweightSlider';
 
 const testimonials = [
   {
@@ -30,7 +28,7 @@ const testimonials = [
 
 // Single Testimonial Card
 const Testimonial = ({ testimonial }) => (
-  <div className="flex justify-center">
+  <div className="flex justify-center px-4">
     <div className="relative bg-gradient-to-br from-pink-50 to-yellow-50 rounded-2xl shadow-lg p-8 max-w-xl w-full border border-red-100">
       <div className="absolute -top-8 left-8">
         {/* Decorative quote icon */}
@@ -39,7 +37,7 @@ const Testimonial = ({ testimonial }) => (
         </svg>
       </div>
       <p className="text-gray-800 italic text-lg md:text-xl mb-6 mt-2">
-        “{testimonial.testimonial}”
+        "{testimonial.testimonial}"
       </p>
       <div className="flex items-center mt-4">
         {testimonial.image && (
@@ -58,45 +56,22 @@ const Testimonial = ({ testimonial }) => (
   </div>
 );
 
-// Slider component
+// Optimized Slider component
 export const TestimonialSlider = () => {
-  const [isSSR, setIsSSR] = useState(true);
-
-  useEffect(() => {
-    setIsSSR(false);
-  }, []);
-
-  const settings = {
-    dots: true,
-    infinite: true,
-    speed: 600,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    autoplay: true,         // Enable autoplay
-    autoplaySpeed: 6000,    // Slide changes every 6 seconds
-    cssEase: "cubic-bezier(0.4,0,0.2,1)",
-    arrows: false,
-    appendDots: dots => (
-      <div>
-        <ul className="flex justify-center mt-6 space-x-2">{dots}</ul>
-      </div>
-    ),
-    customPaging: i => (
-      <div className="w-3 h-3 bg-red-300 rounded-full opacity-70 hover:opacity-100 transition" />
-    )
-  };
+  const testimonialElements = testimonials.map(testimonial => (
+    <Testimonial key={testimonial.id} testimonial={testimonial} />
+  ));
 
   return (
-    <div className="w-full px-2">
-      {!isSSR && (
-        <Slider {...settings}>
-          {testimonials.map(testimonial => (
-            <div key={testimonial.id}>
-              <Testimonial testimonial={testimonial} />
-            </div>
-          ))}
-        </Slider>
-      )}
+    <div className="w-full">
+      <LightweightSlider
+        autoplay={true}
+        autoplaySpeed={6000}
+        showDots={true}
+        className="testimonial-slider"
+      >
+        {testimonialElements}
+      </LightweightSlider>
     </div>
   );
 };

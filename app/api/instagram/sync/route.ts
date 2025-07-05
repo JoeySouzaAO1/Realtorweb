@@ -4,10 +4,18 @@ import axios from 'axios';
 import { Readable } from 'stream';
 import { Buffer } from 'buffer';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Initialize Supabase client with proper error handling
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Check if environment variables are available
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.warn('Supabase environment variables not configured');
+}
+
+const supabase = supabaseUrl && supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : null;
 
 const BUCKET_NAME = 'instagram-images';
 const MAX_RETRIES = 3;
@@ -31,6 +39,10 @@ async function downloadImage(url: string): Promise<Buffer> {
 }
 
 async function uploadToStorage(buffer: Buffer, fileName: string, retryCount = 0): Promise<string> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+
   try {
     const { data, error } = await supabase.storage
       .from(BUCKET_NAME)
@@ -57,6 +69,14 @@ async function uploadToStorage(buffer: Buffer, fileName: string, retryCount = 0)
 
 export async function POST(req: Request) {
   try {
+    // Check if Supabase is configured
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Supabase is not configured. Please check your environment variables.' },
+        { status: 500 }
+      );
+    }
+
     const { posts } = await req.json();
 
     const results = await Promise.allSettled(
@@ -72,7 +92,7 @@ export async function POST(req: Request) {
           const storageUrl = await uploadToStorage(imageBuffer, fileName);
           
           // Update database record
-          const { error: updateError } = await supabase
+          const { error: updateError } = await supabase!
             .from('instagram_posts')
             .update({
               storage_url: storageUrl,

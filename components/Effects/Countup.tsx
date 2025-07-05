@@ -14,43 +14,69 @@ export function CountUp({ end, decimals = 0, duration = 1.5, prefix = "", suffix
   const ref = useRef<HTMLSpanElement | null>(null);
   const [hasAnimated, setHasAnimated] = useState(false);
 
+  // Use Intersection Observer for better performance
   useEffect(() => {
-    function handleScroll() {
-      if (!ref.current || hasAnimated) return;
-      const rect = ref.current.getBoundingClientRect();
-      if (rect.top < window.innerHeight && rect.bottom > 0) {
-        setHasAnimated(true);
+    if (!ref.current || hasAnimated) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setHasAnimated(true);
+          observer.disconnect();
+        }
+      },
+      {
+        threshold: 0.1, // Trigger when 10% of the element is visible
+        rootMargin: '50px' // Start animation 50px before entering viewport
       }
-    }
-    window.addEventListener("scroll", handleScroll);
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
+    );
+
+    observer.observe(ref.current);
+
+    return () => observer.disconnect();
   }, [hasAnimated]);
 
+  // Optimized animation using requestAnimationFrame
   useEffect(() => {
     if (!hasAnimated) return;
-    let start = 0;
-    const startTime = performance.now();
-    function animate(currentTime: number) {
+
+    let startTime: number | null = null;
+    let animationId: number;
+
+    const animate = (currentTime: number) => {
+      if (!startTime) startTime = currentTime;
+      
       const elapsed = (currentTime - startTime) / 1000;
       const progress = Math.min(elapsed / duration, 1);
-      const value = start + (end - start) * progress;
+      
+      // Easing function for smooth animation
+      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+      const value = end * easeOutQuart;
+      
       setCount(value);
+
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        animationId = requestAnimationFrame(animate);
       } else {
         setCount(end);
       }
-    }
-    requestAnimationFrame(animate);
+    };
+
+    animationId = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
   }, [hasAnimated, end, duration]);
 
   return (
-    <span ref={ref}>
+    <span ref={ref} className="inline-block">
       {prefix}
       {count.toFixed(decimals)}
       {suffix}
-      <span style={{ fontSize: '25px', color: '#000', marginLeft: '2px' }}>+</span>
+      <span className="text-2xl text-black ml-1">+</span>
     </span>
   );
 }
